@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Téou-Chuila</title>
+</head>
+<body>
+
+</body>
+<!-- Éléments HTML -->
+
+<!-- Téou-->
+<div class="teou aCacher grpeACacher" style="background-color: #478ADB; color:white">TÉOU. À grouper avec une zone de texte contenant la variable. Ex: !variable</div>
+<script></script>
+
+<!-- Séquence-->
+<div class="sequence aCacher" id='sequence' style="background-color: slateblue; color:white">SÉQUENCE AUTO    <BR>(Optionnel, à placer dans la page ou se trouve la FONCTION TÉOU) : Permet la mémorisation des positions et des timings pour rejouer la séquence de déplacements des TÉOUs.</div>
+<script></script>
+
+<div class="sequence aCacher" id='sequenceBtn' style="color:slateblue; border: solid slateblue; text-align: center;">BOUTON SÉQUENCE</div>
+<script></script>
+
+<div class="sequence aCacher" id='sequenceBtnStop' style="color:#d31557; border: solid slateblue; text-align: center;">STOP BOUTON SÉQUENCE</div>
+<script></script>
+
+<!-- Reset -->
+<div class="aCacher grpeACacher resetSessionBtn" style="color: #2874A6; border: solid #2874A6; text-align: center;">BOUTON RESET</div>
+<script></script>
+
+<div class="aCacher grpeACacher resetSession" style="color: white; background-color:#2874A6;  text-align: center;">RESET AUTO</div>
+<script></script>
+
+<!-- Transformation sessionStorage / localStorage-->
+<div class="aCacher" id="permanent" style="color:#c43c85; border: solid #c43c85; text-align: center;">STOCKAGE PERMANENT</div>
+<script></script>
+
+<!-- Enregistrements-->
+
+<textarea name="textarea" id="record" rows="27" cols="60" style ="border: solid #c43c85;">
+    ENREGISTRER UNE SEQUENCE DE DÉPLACEMENT PERMANENTE ET LA RESTITUER INDÉPENDAMMENT (TUTORIELS, CORRECTIONS D'EXERCICES, ANIMATION DE SÉQUENCE DE JEU ETC...)
+
+        1. Placez cet élément (RECORD) ET l'élément RECORD BOUTON ("GÉNÉRER UNE SÉQUENCE") dans la page de la FONCTION TEOU (et des éléments TEOU et leurs variables) en mode "EDITION"
+        2. En mode "PREVIEW" : Commencez l'enregistrement de la séquence (avec le BOUTON SEQUENCE, ou en mode automatique avec SEQUENCE AUTO)
+        3. À la fin de l'enregistrement (clic sur STOP BOUTON SEQUENCE), cliquez sur l'élément RECORD BOUTON ("GÉNÉRER UNE SÉQUENCE")
+        4. Ces présentes instructions sont écrasées par le code de la séquence.
+        5. Copiez le code de la séquence
+        6. Dans le Menu de Genially, rendez-vous à la rubrique INSÉRER --> </>AUTRES, puis collez et cliquez sur INSÉRER
+        7. Copiez L'élément qui apparaît et collez-le en mode EDITION dans une page contenant la FONCTION CHUILA et les éléments CHUILA comportant les mêmes variables qu'en 1.
+        8. Dans cette page, il n'est plus nécessaire d'avoir préalablement joué la séquence avec La FONCTION TEOU, pour la RESTITUER.
+</textarea>
+<script></script>
+
+<div class="record" id='recordBtn' style="color:#d31557; border: solid slateblue; text-align: center;">GÉNÉRER UNE SÉQUENCE</div>
+<script></script>
+
+
+<!-- Fonctions -->
+
+
+<div class="teouF aCacher" id="teouF" style="background-color: #154360; color:white">FONCTION TÉOU - V1.0 - Béta - 01/12/22</div>
+<script>
+  if (document.querySelector('.container-wrapper-genially')) {
+    /*
+     * 1. Fonctions et procédures
+     */
+
+    const storage = document.querySelector('#permanent') ? localStorage : sessionStorage;
+
+    /**
+     * position : à partir d'un élément possédant une balise style et donc un cssText,
+     * récupérer ses propriétés top, left, et cssTest, et cssText sans top et left, et les retourner dans un objet.
+     * @param elmt | @type{HTMLElement}
+     * @returns {{cssText: (*|string|string|string), top: string, left: string, styleSans: string}}
+     */
+    const position = (elmt) => {
+
+      let cssText = elmt.style.cssText;
+      let styleSans;
+
+      let propTop;
+      let propLeft;
+      let reg1 = /\s+top:\s?\d+\.?\d+px;/g;
+      let reg2 = /\s+left:\s?\d+\.?\d+px;/g;
+
+      if(reg1.test(cssText)){
+        propTop = cssText.match(reg1)[0];
+        styleSans = cssText.replace(propTop, '')
+      }
+
+      if(reg2.test(cssText)){
+        propLeft = cssText.match(reg2)[0];
+        styleSans = styleSans.replace(propLeft, '')
+      }
+
+      return {'top' : propTop, 'left': propLeft, 'cssText': cssText, 'styleSans': styleSans};
+    };
+
+
+    /**
+     * Procédure cache : cacher les éléments de classe '.aCacher' et si la classe '.grpeAcacher' existe aussi,
+     * cacher les zones de texte parentes associées.
+     */
+    const cache = () => {
+      let elts = document.querySelectorAll('.aCacher');
+      for(let el of elts){
+        el.style.display = 'none';
+        if(el.classList.contains('grpeACacher') && el.closest('.genially-animated-wrapper').querySelector('.genially-view-text')){
+          let elmts = el.closest('.genially-animated-wrapper').querySelectorAll('.genially-view-text')
+          for(let el of elmts){
+            if(el.textContent.includes('!')){
+              el.style.display ='none'
+            }
+          }
+        }
+      }
+    };
+
+    /**
+     * Enregistre la position 'pos' dans la variable 'nom' de sessionStrorage
+     * @param nom | string
+     * @param pos | string
+     */
+    const setPosStorage = (nom, pos) => {
+      storage.setItem(nom, pos)
+    };
+
+
+    /**
+     * getToutesPos : Pour toute une collection d'éléments HTML(initialisation), trouver leur nom contenu dans la zone de texte groupée et
+     * retourner un objet d'objets littéraux, dont les clefs sont les noms des variables et les propriétés l'objet des positions.
+     * En profiter pour marquer les '.genially-animated-wrapper' associés avec le nom de la variable (pour les retrouver).
+     * @param lesTeousOuLesChuilas | collections de nœuds HTML
+     * @returns {{}}
+     */
+    const getToutesPos = (lesTeousOuLesChuilas) =>{
+      let objsPos = {};
+
+      for(let teou of lesTeousOuLesChuilas){
+        let teouGAW = teou.closest('.genially-animated-wrapper');
+
+        let nom = teouGAW.querySelector('.genially-view-text').textContent.replace('!','').replace(' ', '')
+
+        objsPos[nom] = {
+          'top' :position(teouGAW).top,
+          'left':position(teouGAW).left,
+          'styleSans' :position(teouGAW).styleSans
+        };
+
+        teouGAW.dataset.nom = nom;
+      }
+      return objsPos;
+    };
+
+
+    /**
+     * restorePos :À partir du nom de la variable et des données de storage,
+     * déplacer les éléments en modifiant leur cssText. 2 cas possibles :
+     * - La propriété 'nom' de storage est un objet → une seule position, la restaurer
+     * - C'est un tableau d'objet : → ensemble de positions, restaurer alors la dernière.
+     * @param nom | string
+     */
+    const restorePos = (nom) => {
+      if(obj[nom] && storage.getItem(nom)){
+        let elGAW = document.querySelector('[data-nom = '+nom+']');
+        let styleSa = position(elGAW).styleSans;
+        if(Array.isArray(JSON.parse(storage.getItem(nom)))){
+          let arr = JSON.parse(storage.getItem(nom));
+          let dernier = arr[arr.length-1];
+          elGAW.style.cssText = styleSa+ dernier.top + dernier.left;
+        }
+        else{
+          elGAW.style.cssText = styleSa+ JSON.parse(storage.getItem(nom)).top + JSON.parse(storage.getItem(nom)).left;
+        }
+
+      }
+    };
+
+    /**
+     * Restaurer les positions initiales à partir du nom et de l'objet littéral de sauvegarde, créé au chargement de la page
+     * @param nom | string
+     */
+    const resetPos = (nom) => {
+      if(sauv[nom]){
+        let elGAW = document.querySelector('[data-nom = '+nom+']');
+        let styleSa = position(elGAW).styleSans;
+        elGAW.style.cssText = styleSa + sauv[nom].top +sauv[nom].left
+      }
+    };
+
+    /**
+     * Procédure initPosStorage : stocker les objets de positions dans storage, s'ils n'existent pas
+     * à partir de l'objet de travail 'obj' créé à l'initialisation de la page puis mis à jour.
+     * La propriété d'accès dans storage est le nom de la variable de la zone de texte.
+     */
+    const initPosStorage = () => {
+      for(const nom in obj){
+        if(!storage.getItem(nom)){
+          setPosStorage(nom, JSON.stringify(obj[nom]))
+        }
+      }
+    };
+
+    /**
+     * getPos : Pour un élement HTML (gestion des événements), trouver son nom dans la zone de texte associé, le retourner
+     * et stocker ses positions dans l'objet de travail "obj" initialisé au chargement de la page.
+     * @param teou | @type {HTMLElement}
+     * @returns {string}
+     */
+    const getPos = (teou) => {
+      let pos = {}
+      let teouGAW = teou.closest('.genially-animated-wrapper');
+      let nom = teouGAW.querySelector('.genially-view-text').textContent.replace('!','').replace(' ', '');
+      pos['top'] = position(teouGAW).top;
+      pos['left'] = position(teouGAW).left;
+      pos ['styleSans'] = position(teouGAW).styleSans;
+      obj[nom] = pos;
+      return nom;
+    };
+
+
+    /*
+     * 2. Initialisation et écoute/gestion des événements
+     */
+
+    /*Récupérer tous les éléments téous, les cacher, récupérer leurs noms puis les stocker*/
+    const lesTeous = document.querySelectorAll('.teou');
+    cache();
+    let obj = getToutesPos(lesTeous); // objet des positions de travail, dont les propriétés sont les noms des ZT
+
+    /* Sauvegarde des positions initiales : clone de 'obj' au chargement de la page*/
+    let sauv = {};
+    for(let clef in obj){
+      sauv[clef] = obj[clef];
+    }
+
+    let sequence;
+
+    if(document.querySelector('#sequence')){ // Séquence automatique
+      sequence = document.querySelector('#sequence')
+    }
+
+    if(document.querySelector('#sequenceBtn')){ // Bouton séquence
+      document.querySelector('#sequenceBtn').closest('.genially-animated-wrapper').addEventListener('click',()=>{
+        sequence = document.querySelector('#sequenceBtn');
+        for(let teou of lesTeous){ // on écoute si mouvements sur les Téous, callback updateStock sur chacun des Téous
+          teou.closest('.genially-animated-wrapper').addEventListener('pointerup', updateStocke, false);
+        }
+      }, false);
+      if(document.querySelector('#sequenceBtnStop')){ // Stop Bouton Séquence
+        document.querySelector('#sequenceBtnStop').closest('.genially-animated-wrapper').addEventListener('click', () =>{
+          for(let teou of lesTeous){
+            teou.closest('.genially-animated-wrapper').removeEventListener('pointerup', updateStocke, false);
+          }
+
+          document.querySelector('#sequenceBtn').closest('.genially-animated-wrapper').addEventListener('click',()=>{
+            for(let teou of lesTeous){ // on écoute si mouvements sur les Téous, callback updateStock sur chacun des Téous
+              teou.closest('.genially-animated-wrapper').addEventListener('pointerup', updateStocke, false);
+            }
+          }, false);
+
+        });
+      }
+    }
+
+
+    //initialisation Timers de séquence et du tableau d'objets à stocker
+    let debut;
+    let fin;
+    let sequA = [];
+
+    initPosStorage();
+
+
+    for(let teou of lesTeous){ // Séquence auto : si mouvements sur les Téous, callback updateStock sur chacun des Téous
+      teou.closest('.genially-animated-wrapper').addEventListener('pointerup', updateStocke, false);
+    }
+
+    function updateStocke (e) {
+      let nom = getPos(e.target);
+
+      if(Array.isArray(JSON.parse(storage.getItem(nom)))){ //si l'objet associé à nom dans sessionStrorage est un tableau, récupérer ce tableau dans sequA
+        sequA = JSON.parse(storage.getItem(nom));
+      }
+      else{ //sinon sequA reste un tableau vide
+        sequA =[];
+      }
+
+      if(debut === undefined && sequence !== undefined && !JSON.parse(storage.getItem('date'))){ // si séquence est dans la page et début pas initialisé, définir début, définir et initialiser les timings de sauv et obj, pousser dans sequA
+        debut = Date.now();
+        setPosStorage('date', JSON.stringify(Date.now()));
+
+        sauv[nom]['timing'] = 1;
+        obj[nom]['timing'] = 1000; // Premier objet de la sequence à restituer : stocker la position initiale + position courante avec restitution 1 s après le début du play de la séquence
+        sequA.push(sauv[nom], obj[nom]);
+
+      }
+      else if(debut === undefined && sequence !== undefined && JSON.parse(storage.getItem('date'))){ // initialisation déjà faite, mais on revient sur la page
+        debut = JSON.parse(storage.getItem('date'));
+        fin = Date.now();
+
+        if(Array.isArray(JSON.parse(storage.getItem(nom)))){ //l'objet a déjà bougé, on complète la séquence
+          obj[nom]['timing'] = fin-debut;
+          sequA.push(obj[nom]);
+
+        }
+        else{ // l'objet n'a pas encore bougé, on crée la séquence
+          sauv[nom]['timing'] = 2;
+          obj[nom]['timing'] = fin-debut;
+          sequA.push(sauv[nom], obj[nom]);
+
+        }
+      }
+      else if(typeof(debut) === 'number' && sequence !== undefined){ //initialisation faite et pas le premier à bouger
+        fin = Date.now();
+        obj[nom]['timing'] = fin-debut;
+        if(!Array.isArray(JSON.parse(storage.getItem(nom)))){
+          sauv[nom]['timing'] = 3
+          sequA.push(sauv[nom])
+        }
+        sequA.push(obj[nom]);
+
+      }
+
+      if(sequence !== undefined){ // séquence est définie : on stocke le tableau d'objets
+        setPosStorage(nom, JSON.stringify(sequA));
+      }
+      else{ // sinon on stocke l'objet
+        setPosStorage(nom, JSON.stringify(obj[nom]));
+      }
+
+    }
+
+
+    /*Dans tous les cas : 'MemosPos-like' par défaut sur les téous*/
+    for(const nom in obj){
+      restorePos(nom)
+    }
+
+
+    /**
+     * 3. Bouton Reset et élément Reset auto
+     * Si aucune zone de texte groupée avec les éléments : Restaurer toutes les positions initiales à partir de l'objet de sauvegarde
+     * Autrement ne restaurer que les positions des éléments dont un nom de variable est groupé avec une zone de texte.
+     **/
+
+    if(document.querySelector('.resetSessionBtn')){ // Bouton Reset
+      for(let btn of document.querySelectorAll('.resetSessionBtn')){
+        btn.closest('.genially-animated-wrapper').addEventListener('click',(e)=>{
+          if(e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text') && e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.includes('!')){
+            let nom = e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.replace('!', '');
+            resetPos(nom);
+            storage.removeItem(nom);
+            // Restauration des positions initiales dans storage après Reset?
+            //setPosStorage(nom, JSON.stringify(sauv[nom]))
+          }
+          else{
+            for(let nom in sauv){
+              resetPos(nom);
+              storage.removeItem(nom);
+            }
+            if(storage.getItem('date')){
+              storage.removeItem('date')
+            }
+            initPosStorage();
+          }
+        },false);
+      }
+
+    }
+    else if(document.querySelector('.resetSession')){ // Reset Auto
+      if(document.querySelector('.resetSession').closest('.genially-animated-wrapper').querySelector('.genially-view-text')){
+        for(let res of document.querySelectorAll('.resetSession')){
+          let nom = res.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.replace('!', '');
+          resetPos(nom);
+          storage.removeItem(nom);
+          // Restauration des positions initiales dans storage après Reset?
+          //setPosStorage(nom, JSON.stringify(sauv[nom]))
+        }
+      }
+      else{
+        for(let nom in sauv){
+          resetPos(nom);
+          storage.removeItem(nom);
+        }
+        if(storage.getItem('date')){
+          storage.removeItem('date')
+        }
+        initPosStorage()
+      }
+
+    }
+    //document.querySelector('textarea[data-cy="insertOthersTextArea"]')
+    if(document.querySelector('#record') && document.querySelector('#recordBtn')){
+      const rec = document.querySelector('#record');
+      const recBtn = document.querySelector('#recordBtn');
+      let enregistrement ={};
+      recBtn.addEventListener('click', ()=>{
+        for(let nom in obj){
+          enregistrement[nom] = JSON.parse(storage.getItem(nom))
+        }
+        rec.value = '<div class="aCacher" id="enregisrement">'+JSON.stringify(enregistrement)+'</div>'+'<'+'script>'+'</'+'script>';
+      }, false);
+    }
+
+
+
+
+
+
+  }// fin
+
+</script>
+
+
+
+
+
+
+
+
+<div class="chuila aCacher grpeACacher" style="background-color: #c4703c; color:white">CHUILA :<BR> À grouper avec une zone de texte contenant un nom de variable. Ex: !variable. Restitue la position de l'élément TÉOU goupé avec !variable</div>
+<script></script>
+
+
+
+<div class="btnChuila aCacher" style="color:#e8945f; border: solid #e8945f; text-align: center;">CHUILA BOUTON RESTAURE SÉQUENCE</div>
+<script></script>
+
+<div class="autoChuila aCacher" style="color:white; background-color:#e8945f ; text-align: center;">CHUILA RESTAURE SÉQUENCE AUTO</div>
+<script></script>
+
+
+
+
+<div class="chuilaF aCacher" id="chuilaF" style="background-color: #8d3c09; color:white">FONCTION CHUILA - V1.0 - Béta - 01/12/22</div>
+<script>
+  if (document.querySelector('.container-wrapper-genially')) {
+
+    const storage = document.querySelector('#permanent') ? localStorage : sessionStorage;
+
+    const position = (elmt) => {
+
+      let cssText = elmt.style.cssText;
+      let styleSans;
+
+      let propTop;
+      let propLeft;
+      let reg1 = /\s+top:\s?\d+\.?\d+px;/g;
+      let reg2 = /\s+left:\s?\d+\.?\d+px;/g;
+
+      if(reg1.test(cssText)){
+        propTop = cssText.match(reg1)[0];
+        styleSans = cssText.replace(propTop, '')
+      }
+
+      if(reg2.test(cssText)){
+        propLeft = cssText.match(reg2)[0];
+        styleSans = styleSans.replace(propLeft, '')
+      }
+
+      return {'top' : propTop, 'left': propLeft, 'cssText': cssText, 'styleSans': styleSans};
+    };
+
+
+    const cache = () => {
+      let elts = document.querySelectorAll('.aCacher');
+      for(let el of elts){
+        el.style.display = 'none';
+        if(el.classList.contains('grpeACacher') && el.closest('.genially-animated-wrapper').querySelector('.genially-view-text')){
+          let elmts = el.closest('.genially-animated-wrapper').querySelectorAll('.genially-view-text')
+          for(let el of elmts){
+            if(el.textContent.includes('!')){
+              el.style.display ='none'
+            }
+          }
+        }
+      }
+    };
+
+
+    const getToutesPos = (lesTeousOuLesChuilas) =>{
+      let objsPos = {};
+
+      for(let teou of lesTeousOuLesChuilas){
+        let teouGAW = teou.closest('.genially-animated-wrapper');
+
+        let nom = teouGAW.querySelector('.genially-view-text').textContent.replace('!','').replace(' ', '')
+
+        objsPos[nom] = {
+          'top' :position(teouGAW).top,
+          'left':position(teouGAW).left,
+          'styleSans' :position(teouGAW).styleSans
+        };
+
+        teouGAW.dataset.nom = nom;
+      }
+      return objsPos;
+    };
+
+
+    const restorePos = (nom) => {
+      if(objNoms.includes(nom) && storage.getItem(nom)){
+        let elGAW;
+        for(let el of lesChuila){
+          if(el.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.includes(nom)){
+            elGAW = el.closest('.genially-animated-wrapper');
+            let styleSa = position(elGAW).styleSans;
+            if(Array.isArray(JSON.parse(storage.getItem(nom)))){
+              let arr = JSON.parse(storage.getItem(nom));
+              let dernier = arr[arr.length-1];
+              elGAW.style.cssText = styleSa+ dernier.top + dernier.left;
+            }
+            else{
+              elGAW.style.cssText = styleSa+ JSON.parse(storage.getItem(nom)).top + JSON.parse(storage.getItem(nom)).left;
+            }
+          }
+        }
+      }
+    };
+
+
+    const restorePosObj = (nom,obj) => {
+      let elGAW;
+      for(let el of lesChuila){
+        if(el.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.includes(nom)){
+          elGAW = el.closest('.genially-animated-wrapper');
+          let styleSa = position(elGAW).styleSans;
+          elGAW.style.cssText = styleSa + obj.top + obj.left;
+        }
+      }
+    };
+
+
+    /*Initialisation */
+    const lesChuila = document.querySelectorAll('.chuila');
+    cache();
+    let obj = getToutesPos(lesChuila);
+    let objNoms = Object.keys(obj);
+
+    if(document.querySelector('.btnChuila')){
+      if(document.querySelector('#enregisrement')){
+        const enre = JSON.parse(document.querySelector('#enregisrement').innerHTML);
+        for(let nom in enre){
+          storage.setItem(nom, JSON.stringify(enre[nom]))
+        }
+      }
+      document.querySelector('.btnChuila').closest('.genially-animated-wrapper').addEventListener('click', ()=>{
+        for(let nom of objNoms){
+          if(Array.isArray(JSON.parse(storage.getItem(nom)))){
+            let arObj = JSON.parse(storage.getItem(nom));
+            for(let obj of arObj){
+              setTimeout(()=>{restorePosObj(nom, obj)}, obj['timing'])
+            }
+          }else{
+            restorePos(nom)
+          }
+
+        }
+      });
+    }
+    else if(document.querySelector('.autoChuila')){
+      if(document.querySelector('#enregisrement')){
+        const enre = JSON.parse(document.querySelector('#enregisrement').innerHTML);
+        for(let nom in enre){
+          storage.setItem(nom, JSON.stringify(enre[nom]))
+        }
+      }
+      for(let nom of objNoms){
+        if(Array.isArray(JSON.parse(storage.getItem(nom)))){
+          let arObj = JSON.parse(storage.getItem(nom));
+          for(let obj of arObj){
+            setTimeout(()=>{restorePosObj(nom, obj)}, obj['timing'])
+          }
+        }else{
+          restorePos(nom)
+        }
+
+      }
+    }
+    else{
+      for(let nom of objNoms){
+        restorePos(nom)
+      }
+    }
+
+
+  }//fin
+</script>
+
+
+
+
+</html>
