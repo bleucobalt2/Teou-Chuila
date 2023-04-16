@@ -9,12 +9,12 @@
 </body>
 <!-- Éléments HTML -->
 
-<!-- Téou-->
+<!-- Élément(s) Téou-->
 <div class="teou aCacher grpeACacher" style="background-color: #478ADB; color:white">TÉOU. À grouper avec une zone de texte contenant la variable. Ex: !variable</div>
 <script></script>
 
-<!-- Séquence-->
-<div class="sequence aCacher" id='sequence' style="background-color: slateblue; color:white">SÉQUENCE AUTO    <BR>(Optionnel, à placer dans la page ou se trouve la FONCTION TÉOU) : Permet la mémorisation des positions et des timings pour rejouer la séquence de déplacements des TÉOUs.</div>
+<!-- Élément Séquence-->
+<div class="sequence aCacher" id='sequence' style="background-color: slateblue; color:white">SÉQUENCE AUTO    <BR>(Optionnel, à placer dans la page o se trouve la FONCTION TÉOU) : Permet la mémorisation des positions et des timings pour rejouer la séquence de déplacements des TÉOUs.</div>
 <script></script>
 
 <div class="sequence aCacher" id='sequenceBtn' style="color:slateblue; border: solid slateblue; text-align: center;">BOUTON SÉQUENCE</div>
@@ -30,7 +30,7 @@
 <div class="aCacher grpeACacher resetSession" style="color: white; background-color:#2874A6;  text-align: center;">RESET AUTO</div>
 <script></script>
 
-<!-- Transformation sessionStorage / localStorage-->
+<!-- Transformation sessionStorage en localStorage-->
 <div class="aCacher" id="permanent" style="color:#c43c85; border: solid #c43c85; text-align: center;">STOCKAGE PERMANENT</div>
 <script></script>
 
@@ -57,7 +57,7 @@
 <!-- Fonctions -->
 
 
-<div class="teouF aCacher" id="teouF" style="background-color: #154360; color:white">FONCTION TÉOU - V1.0 - Béta - 01/12/22</div>
+<div class="teouF aCacher" id="teouF" style="background-color: #154360; color:white">FONCTION TÉOU - V1.1 - 12/04/23</div>
 <script>
   if (document.querySelector('.container-wrapper-genially')) {
     /*
@@ -126,7 +126,7 @@
 
 
     /**
-     * getToutesPos : Pour toute une collection d'éléments HTML(initialisation), trouver leur nom contenu dans la zone de texte groupée et
+     * getToutesPos : Pour toute une collection d'éléments HTML (initialisation), trouver leur nom contenu dans la zone de texte groupée et
      * retourner un objet d'objets littéraux, dont les clefs sont les noms des variables et les propriétés l'objet des positions.
      * En profiter pour marquer les '.genially-animated-wrapper' associés avec le nom de la variable (pour les retrouver).
      * @param lesTeousOuLesChuilas | collections de nœuds HTML
@@ -403,11 +403,43 @@
     }
 
 
+    /**
+     * 4. Bouton Play et élément Play auto ; copilotage
+     * Si aucune zone de texte groupée avec les éléments : Jouer toutes les séquences
+     * Autrement ne jouer que les séquences des éléments dont un nom de variable est groupé avec une zone de texte.
+     **/
+      if(document.querySelector('.playSessionBtn')){ // Bouton Play
+        for(let btn of document.querySelectorAll('.playSessionBtn')){
+          btn.closest('.genially-animated-wrapper').addEventListener('click',(e)=>{
+            if(e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text') && e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.includes('!')){
+              let nom = e.target.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.replace('!', '');
+              playSequence(nom);
+            }
+            else{
+              for(let nom in obj){
+                playSequence(nom);
+              }
+            }
+          },false);
+        }
 
+      }
+      else if(document.querySelector('.playSession')){ // Play Auto
+        if(document.querySelector('.playSession').closest('.genially-animated-wrapper').querySelector('.genially-view-text')){
+          for(let res of document.querySelectorAll('.playSession')){
+            let nom = res.closest('.genially-animated-wrapper').querySelector('.genially-view-text').textContent.replace('!', '');
+            playSequence(nom);
+          }
+        }
+        else{
+          for(let nom in obj){
+            playSequence(nom);
+          }
+        }
 
+      }
 
-
-  }// fin
+  }// fin Fonction Téou
 
 </script>
 
@@ -429,10 +461,13 @@
 <div class="autoChuila aCacher" style="color:white; background-color:#e8945f ; text-align: center;">CHUILA RESTAURE SÉQUENCE AUTO</div>
 <script></script>
 
+<div class="timerChuila aCacher" style="color:white; background-color:#e8945f ; text-align: center;">CHUILA RESTAURE SÉQUENCE TIMER</div>
+<script></script>
 
 
 
-<div class="chuilaF aCacher" id="chuilaF" style="background-color: #8d3c09; color:white">FONCTION CHUILA - V1.0 - Béta - 01/12/22</div>
+
+<div class="chuilaF aCacher" id="chuilaF" style="background-color: #8d3c09; color:white">FONCTION CHUILA - V1.1 - 12/04/23</div>
 <script>
   if (document.querySelector('.container-wrapper-genially')) {
 
@@ -573,6 +608,19 @@
           }
         }else{
           restorePos(nom)
+        }
+
+      }
+    }
+    else if(document.querySelector('.timerChuila')){
+      for(let nom of objNoms){
+        if(Array.isArray(JSON.parse(storage.getItem(nom)))){
+          let arObj = JSON.parse(storage.getItem(nom));
+          for(let obj of arObj){
+            setTimeout(()=>{restorePosObj(nom, obj)}, obj['timing'])
+          }
+        }else{
+          setInterval(()=>{restorePos(nom)}, 300);
         }
 
       }
